@@ -14,10 +14,14 @@ assignment5.c * * Description: Assignment 5 code for IR obstacle sensor and line
 #define TRIG2 6
 #define TRIG3 12
 #define TRIG4 26
-#define FORWARD1 3
-#define FORWARD2 5
-#define FORWARD3 13
-#define FORWARD4 11
+#define FORWARD1 2
+#define FORWARD2 4
+#define FORWARD3 14
+#define FORWARD4 10
+#define REVERSE1 3
+#define REVERSE2 5
+#define REVERSE3 13
+#define REVERSE4 11
 
 int exitbool = 0;
 int lineDetect = 0;
@@ -27,8 +31,8 @@ int vpwm = 0;
 void *lineThread(void *vargp) {
 	while (exitbool == 0) {
 		lineDetect = digitalRead(LINE);
-		if (lineDetect == 0) {
-			pwm = 100;
+		if (lineDetect == 1) {
+			pwm = 50;
 		}
 		else pwm = 0;
 	}
@@ -80,6 +84,10 @@ softPwmCreate (FORWARD1, 0, 100);
 softPwmCreate (FORWARD2, 0, 100);
 softPwmCreate (FORWARD3, 0, 100);
 softPwmCreate (FORWARD4, 0, 100);
+softPwmCreate (REVERSE1, 0, 100);
+softPwmCreate (REVERSE2, 0, 100);
+softPwmCreate (REVERSE3, 0, 100);
+softPwmCreate (REVERSE4, 0, 100);
 
 pthread_t linethread_id, wheelthread_id;
 pinMode (LINE, INPUT);
@@ -91,7 +99,7 @@ pthread_create(&linethread_id, NULL, lineThread, NULL);
 pthread_create(&wheelthread_id, NULL, wheelThread, NULL);
 
 time_t seconds = time(NULL);
-while (time(NULL) < seconds + 30) {
+while (time(NULL) < seconds + 300) {
 	printf("Line Sensor: %d\n", lineDetect);
 	fflush(stdout);
 	printf("PWM: %d\n", pwm);
