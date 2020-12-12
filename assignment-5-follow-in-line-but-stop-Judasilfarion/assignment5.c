@@ -11,6 +11,7 @@ assignment5.c * * Description: Assignment 5 code for IR obstacle sensor and line
 
 // GPIO pin for the line sensor
 #define LINE 25
+#define OBSTACLE 24
 
 // GPIO pins for turning on the motors, probably don't need to touch these
 #define TRIG1 0
@@ -34,6 +35,8 @@ int exitbool = 0;
 // If this is 1, then the car detects the line. If this is 0, then the car does not detect the line
 int lineDetect = 0;
 
+int obstacleDetect = 0;
+
 // The target pwm of the motors
 int pwm;
 
@@ -52,6 +55,19 @@ void *lineThread(void *vargp) {
 	}
 	return NULL;
 }
+
+void *obstacleThread(void *vargp) {
+	while (exitbool == 0) {
+		obstacleDetect = digitalRead(OBSTACLE); // Read the input from the line sensor
+		if (obstacleDetect == 1) {
+			pwm = 0; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
+		}
+		
+	}
+	return NULL;
+}
+
+
 
 // This thread runs the while loop that modifies the pwm of the motors so that they can start and stop.
 void *wheelThread(void *vargp) {
@@ -112,14 +128,16 @@ softPwmCreate (REVERSE3, 0, 100);
 softPwmCreate (REVERSE4, 0, 100);
 
 // Create threads for line sensor and motors
-pthread_t linethread_id, wheelthread_id;
+pthread_t linethread_id, wheelthread_id, obstaclethread_id;
 pinMode (LINE, INPUT);
+pinMode (OBSTACLE, INPUT);
 
 printf("Creating threads for sensors \n");
 fflush(stdout);
 
 pthread_create(&linethread_id, NULL, lineThread, NULL);
 pthread_create(&wheelthread_id, NULL, wheelThread, NULL);
+pthread_create(&obstaclethread_id, NULL, obstacleThread, NULL);
 
 // Runs the program for 5 minutes before shutting down
 time_t seconds = time(NULL);
