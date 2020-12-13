@@ -37,11 +37,18 @@ int lineDetect = 0;
 
 int obstacleDetect = 0;
 
-// The target pwm of the motors
+// The target pwm of the Right motors
 int pwm;
 
-// The current pwm of the motors
+// The target pwm of the Left motors
+int pwmL;
+
+
+// The current pwm of the Right motors
 int vpwm = 0;
+
+// The current pwm of the Left motors
+int vpwmL = 0;
 
 // This thread runs a while loop that continually reads input from the line sensor in order to determine whether or not sensors detect a line.
 // It currently assumes that the car only has a single line sensor - The sensor attached directly to the front of the car. Support for the other line sensors will be implemented later.
@@ -50,8 +57,9 @@ void *lineThread(void *vargp) {
 		lineDetect = digitalRead(LINE); // Read the input from the line sensor
 		if (lineDetect == 1) {
 			pwm = 50; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
+			pwmL = pwm;
 		}
-		else pwm = 0;
+		else {pwm = 0; pwmL = pwm;}
 	}
 	return NULL;
 }
@@ -61,23 +69,44 @@ void *obstacleThread(void *vargp) {
 		obstacleDetect = digitalRead(OBSTACLE); // Read the input from the line sensor
 		if (obstacleDetect == 1) {
 			pwm = 0; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
+			pwm = pwmL;
 		}
 		
 	}
 	return NULL;
 }
 
+void changeDirection(){//Change car direction at same position
+	printf("Changing Direction\n");
+	for(;;){
+	delay(1000);
+	softPwmWrite (REVERSE1, 50);
+	softPwmWrite (REVERSE2, 50);
+	softPwmWrite (REVERSE3, 50);
+	softPwmWrite (REVERSE4, 50);
+	delay(1000);
+	softPwmWrite (REVERSE1, 0);
+	softPwmWrite (REVERSE2, 0);
+	softPwmWrite (REVERSE3, 0);
+	softPwmWrite (REVERSE4, 0);
+	delay(1000);
+	softPwmWrite (FORWARD1, 0);
+	softPwmWrite (FORWARD2, 50);
+	softPwmWrite (FORWARD3, 50);
+	softPwmWrite (FORWARD4, 0);
+	delay(1000);
+	}
 
 
-// This thread runs the while loop that modifies the pwm of the motors so that they can start and stop.
-void *wheelThread(void *vargp) {
+}
+
+//Right wheels
+void *rightWheelThread(void *vargp) {
 	while (exitbool == 0) {
 		if (vpwm < pwm) {
 			// If current pwm is less than target pwm, run a loop that sets power output to all motors to max (max is currently defined by pwm = 50 in the lineThread), which sets motor speed to max.
 			for (vpwm; vpwm < pwm; vpwm++) {
 				softPwmWrite (FORWARD1, vpwm);
-				softPwmWrite (FORWARD2, vpwm);
-				softPwmWrite (FORWARD3, vpwm);
 				softPwmWrite (FORWARD4, vpwm);
 			}
 		}
@@ -85,9 +114,36 @@ void *wheelThread(void *vargp) {
 			// If current pwm is greater than target pwm, run a loop that sets power output to all motors to 0, which stops all wheels.
 			for (vpwm; vpwm > pwm; vpwm--) {
 				softPwmWrite (FORWARD1, vpwm);
-				softPwmWrite (FORWARD2, vpwm);
-				softPwmWrite (FORWARD3, vpwm);
 				softPwmWrite (FORWARD4, vpwm);
+			}
+		}
+	}
+	return NULL;
+}
+
+
+
+
+//Left wheels
+// This thread runs the while loop that modifies the pwm of the motors so that they can start and stop.
+void *wheelThread(void *vargp) {
+	while (exitbool == 0) {
+		if (vpwmL < pwmL) {
+			// If current pwm is less than target pwm, run a loop that sets power output to all motors to max (max is currently defined by pwm = 50 in the lineThread), which sets motor speed to max.
+			for (vpwmL; vpwmL < pwmL; vpwmL++) {
+				
+				softPwmWrite (FORWARD2, vpwmL);
+				softPwmWrite (FORWARD3, vpwmL);
+				
+			}
+		}
+		if (vpwmL > pwmL) {
+			// If current pwm is greater than target pwm, run a loop that sets power output to all motors to 0, which stops all wheels.
+			for (vpwmL; vpwmL > pwmL; vpwmL--) {
+				
+				softPwmWrite (FORWARD2, vpwmL);
+				softPwmWrite (FORWARD3, vpwmL);
+				
 			}
 		}
 	}
@@ -128,7 +184,7 @@ softPwmCreate (REVERSE3, 0, 100);
 softPwmCreate (REVERSE4, 0, 100);
 
 // Create threads for line sensor and motors
-pthread_t linethread_id, wheelthread_id, obstaclethread_id;
+pthread_t linethread_id, wheelthread_id, rightWheelthread_id, obstaclethread_id;
 pinMode (LINE, INPUT);
 pinMode (OBSTACLE, INPUT);
 
@@ -137,7 +193,8 @@ fflush(stdout);
 
 pthread_create(&linethread_id, NULL, lineThread, NULL);
 pthread_create(&wheelthread_id, NULL, wheelThread, NULL);
-pthread_create(&obstaclethread_id, NULL, obstacleThread, NULL);
+pthread_create(&rightWheelthread_id, NULL, rightWheelThread, NULL);
+//pthread_create(&obstaclethread_id, NULL, obstacleThread, NULL);
 
 // Runs the program for 5 minutes before shutting down
 time_t seconds = time(NULL);
