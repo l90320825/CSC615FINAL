@@ -80,9 +80,17 @@ void *lineThread(void *vargp) {
 			pwm = 50; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
 		}
 
-		// Stop if sensors detect nothing
-		else {
-			pwm = 0;
+		// Continue moving if sensors detect nothing for a short duration so side sensors can detect line
+		if (LDM == 0 && LDR == 0 && LDL == 0) {
+			time_t seconds;
+			seconds = time(NULL);
+				while (time(NULL) < seconds + 3) {
+					pwm = 50;
+					if (digitalRead(LINER) == 1 || digitalRead(LINEL) == 1)
+						break;
+				}
+			if (digitalRead(LINER) == 0 || digitalRead(LINEL) == 0)
+				pwm = 0;
 		}
 	}
 	return NULL;
