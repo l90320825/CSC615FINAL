@@ -40,6 +40,7 @@ int LDR = 0;
 int LDL = 0;
 
 int obstacleDetect = 0;
+int obstacleAvoidInControl = 0;
 
 // Determine which direction the vehicle is turning
 int forward = 0;
@@ -81,8 +82,31 @@ void *lineThread(void *vargp) {
 void *changeDirection(void *vargp) {
 	while (exitbool == 0) {
 
+		if(obstacleAvoidInControl == 1){//If obstacle in front, take over control and perform a scripted route 
+			pwm = 40;
+			left = 0;
+			right = 1;
+			forward = 0;
+			delay(2000); //set to turn right for 2 sec
+			left = 0;
+			right = 0;
+			forward = 1;
+			delay(2000);
+			left = 1;
+			right = 0;
+			forward = 0;
+			delay(2000);
+			left = 0;
+			right = 0;
+			forward = 1;
+			delay(2000);
+
+			obstacleAvoidInControl = 0;
+
+		}
+
 		// If the middle sensor detects the line in front of the car, then all wheels turn
-		if (LDM == 1 && LDR == 0 && LDL == 0) {
+		else if (LDM == 1 && LDR == 0 && LDL == 0) {
 			pwm = 40; // This sets the power output to the motors at 40%, because 100% power makes them spin too fast
 			left = 0;
 			right = 0;
@@ -154,8 +178,8 @@ void *obstacleThread(void *vargp) {
 	while (exitbool == 0) {
 		obstacleDetect = digitalRead(OBSTACLE); // Read the input from the line sensor
 		if (obstacleDetect == 1) {
-			int pwm = 0; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
-			pwm = pwm;
+			obstacleAvoidInControl = 1;
+		
 		}
 
 	}
