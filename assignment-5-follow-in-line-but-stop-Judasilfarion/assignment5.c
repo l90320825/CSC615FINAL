@@ -83,6 +83,7 @@ void *changeDirection(void *vargp) {
 	while (exitbool == 0) {
 
 		if(obstacleAvoidInControl == 1){//If obstacle in front, take over control and perform a scripted route 
+
 			pwm = 40;
 			left = 0;
 			right = 1;
@@ -91,7 +92,7 @@ void *changeDirection(void *vargp) {
 			left = 0;
 			right = 0;
 			forward = 1;
-			delay(2000);
+			delay(2000); //set to  foward for 2 sec //Change it if the time is too long
 			left = 1;
 			right = 0;
 			forward = 0;
@@ -101,7 +102,7 @@ void *changeDirection(void *vargp) {
 			forward = 1;
 			delay(2000);
 
-			obstacleAvoidInControl = 0;
+			obstacleAvoidInControl = 0; //car back to normal
 
 		}
 
