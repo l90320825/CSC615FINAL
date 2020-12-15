@@ -68,21 +68,20 @@ void *lineThread(void *vargp) {
 			LDL = 1;
 		}
 		else LDL = 0;
-		
+
 
 
 		/*
 		Set the pwm of wheels based on the line sensors
 		*/
 
-		// If line sensors detect any lines, then wheels turn
-		if (LDM == 1 || LDR == 1 || LDL == 1) {
+		// If line sensors detect only LDM, wheels turn forward
+		if (LDM == 1 && LDR == 0 && LDL == 0) {
 			pwm = 50; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
 		}
 
-		// Continue going forward for a short distance after losing the line so side sensors can detect line
+		// Stop if sensors detect nothing
 		else {
-			delay(3);
 			pwm = 0;
 		}
 	}
@@ -94,9 +93,9 @@ void *obstacleThread(void *vargp) {
 		obstacleDetect = digitalRead(OBSTACLE); // Read the input from the line sensor
 		if (obstacleDetect == 1) {
 			int pwm = 0; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
-			pwm = pwmL;
+			pwm = pwm;
 		}
-		
+
 	}
 	return NULL;
 }
@@ -131,22 +130,32 @@ void *wheelThread(void *vargp) {
 		if (pwm == 50 && LDM == 1) {
 			// If current pwm is less than target pwm, run a loop that sets power output to motors to max (max is currently defined by pwm = 50 in the lineThread), which sets motor speed to max.
 			for (vpwmL; vpwmL < pwm; vpwmL++) {
+				softPwmWrite (REVERSE2, 0);
+				softPwmWrite (REVERSE3, 0);
 				softPwmWrite (FORWARD2, vpwmL);
 				softPwmWrite (FORWARD3, vpwmL);
 			}
 			for (vpwmR; vpwmR < pwm; vpwmR++) {
+				softPwmWrite (REVERSE1, 0);
+				softPwmWrite (REVERSE4, 0);
 				softPwmWrite (FORWARD1, vpwmR);
 				softPwmWrite (FORWARD4, vpwmR);
 			}
 		}
 
 		// Turn Right
-		else if (pwm == 50 && LDR == 1) {
+		else if (pwm == 50 && LDR == 1 && LDL == 0) {
+			// Forward left wheels
 			for (vpwmL; vpwmL < pwm; vpwmL++) {
+				softPwmWrite (REVERSE2, 0);
+				softPwmWrite (REVERSE3, 0);
 				softPwmWrite (FORWARD2, vpwmL);
 				softPwmWrite (FORWARD3, vpwmL);
 			}
+			// Reverse right wheels
 			for (vpwmR; vpwmR < pwm; vpwmR++) {
+				softPwmWrite (FORWARD1, 0);
+				softPwmWrite (FORWARD4, 0);
 				softPwmWrite (REVERSE1, vpwmR);
 				softPwmWrite (REVERSE4, vpwmR);
 			}
@@ -155,11 +164,17 @@ void *wheelThread(void *vargp) {
 		
 		// Turn Left
 		else if (pwm == 50 && LDL == 1) {
+			// Reverse left wheels
 			for (vpwmL; vpwmL < pwm; vpwmL++) {
+				softPwmWrite (FORWARD2, 0);
+				softPwmWrite (FORWARD3, 0);
 				softPwmWrite (REVERSE2, vpwmL);
 				softPwmWrite (REVERSE3, vpwmL);
 			}
+			// Forward right wheels
 			for (vpwmR; vpwmR < pwm; vpwmR++) {
+				softPwmWrite (REVERSE1, 0);
+				softPwmWrite (REVERSE4, 0);
 				softPwmWrite (FORWARD1, vpwmR);
 				softPwmWrite (FORWARD4, vpwmR);
 			}
@@ -171,10 +186,14 @@ void *wheelThread(void *vargp) {
 			for (vpwmL; vpwmL > pwm; vpwmL--) {
 				softPwmWrite (FORWARD2, vpwmL);
 				softPwmWrite (FORWARD3, vpwmL);
+				softPwmWrite (REVERSE2, vpwmL);
+				softPwmWrite (REVERSE3, vpwmL);
 			}
 			for (vpwmR; vpwmR > pwm; vpwmR--) {
 				softPwmWrite (FORWARD1, vpwmR);
 				softPwmWrite (FORWARD4, vpwmR);
+				softPwmWrite (REVERSE1, vpwmR);
+				softPwmWrite (REVERSE4, vpwmR);
 			}
 		}
 
