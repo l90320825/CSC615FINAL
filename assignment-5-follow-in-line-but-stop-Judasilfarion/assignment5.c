@@ -58,21 +58,21 @@ void *lineThread(void *vargp) {
 
 		// If mid line sensor detects the line, go straight
 		if (digitalRead(LINEM) == 1) {
-			pwm = 50; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
+			int pwm = 50; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
 			pwmL = pwm;
 			pwmR = pwm;
 		}
 		
 		// Turn right if there is no line in front of the car, but right line sensor detects the line
 		else if (digitalRead(LINER) == 1) {
-			pwm = 50;
+			int pwm = 50;
 			pwmL = 0;
 			pwmR = pwm;
 		}
 
 		// Turn left if there is no line in front of the car, but left line sensor detects the line
 		else if (digitalRead(LINEL) == 1) {
-			pwm = 50;
+			int pwm = 50;
 			pwmL = pwm;
 			pwmR = 0;
 		}
@@ -80,7 +80,7 @@ void *lineThread(void *vargp) {
 		// Continue going forward for a short distance after losing the line so side sensors can detect line
 		else if (digitalRead(LINEM) == 0) {
 			delay(1);
-			pwm = 0;
+			int pwm = 0;
 			pwmL = pwm;
 			pwmR = pwm;
 		}
@@ -92,7 +92,7 @@ void *obstacleThread(void *vargp) {
 	while (exitbool == 0) {
 		obstacleDetect = digitalRead(OBSTACLE); // Read the input from the line sensor
 		if (obstacleDetect == 1) {
-			pwm = 0; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
+			int pwm = 0; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
 			pwm = pwmL;
 		}
 		
@@ -126,26 +126,28 @@ void changeDirection(){//Change car direction at same position
 void *wheelThread(void *vargp) {
 	while (exitbool == 0) {
 
-		// Go forward
+		// Left Wheels Forward
 		if (vpwmL < pwmL) {
 			// If current pwm is less than target pwm, run a loop that sets power output to all motors to max (max is currently defined by pwm = 50 in the lineThread), which sets motor speed to max.
 			for (vpwmL; vpwmL < pwmL; vpwmL++) {
-				softPwmWrite (FORWARD1, vpwmL);
 				softPwmWrite (FORWARD2, vpwmL);
 				softPwmWrite (FORWARD3, vpwmL);
-				softPwmWrite (FORWARD4, vpwmL);
 				
 			}
 		}
+
+		// Right Wheels Forward
+		if (vpwmR < pwmR) {
+
 
 		// Stop
 		if (vpwmL > pwmL) {
 			// If current pwm is greater than target pwm, run a loop that sets power output to all motors to 0, which stops all wheels.
 			for (vpwmL; vpwmL > pwmL; vpwmL--) {
-				softPwmWrite (FORWARD1, vpwmL);
+				softPwmWrite (FORWARD1, vpwmR);
 				softPwmWrite (FORWARD2, vpwmL);
 				softPwmWrite (FORWARD3, vpwmL);
-				softPwmWrite (FORWARD4, vpwmL);
+				softPwmWrite (FORWARD4, vpwmR);
 			}
 		}
 
@@ -198,15 +200,18 @@ printf("Creating threads for sensors \n");
 fflush(stdout);
 
 pthread_create(&linethread_id, NULL, lineThread, NULL);
-pthread_create(&wheelThread_id, NULL, wheelThread, NULL);
+pthread_create(&wheelthread_id, NULL, wheelThread, NULL);
 //pthread_create(&obstaclethread_id, NULL, obstacleThread, NULL);
 
 // Runs the program for 5 minutes before shutting down
 time_t seconds = time(NULL);
 while (time(NULL) < seconds + 300) {
-	printf("Line Sensor: %d\n", lineDetect);
+	printf("Line Sensor M: %d\n", digitalRead(LINEM));
+	printf("Line Sensor R: %d\n", digitalRead(LINER));
+	printf("Line Sensor L: %d\n", digitalRead(LINEL));
 	fflush(stdout);
-	printf("PWM: %d\n", pwm);
+	printf("PWML: %d\n", pwmL);
+	printf("PWMR: %d\n", pwmR);
 	fflush(stdout);
 	delay(1000);
 }
