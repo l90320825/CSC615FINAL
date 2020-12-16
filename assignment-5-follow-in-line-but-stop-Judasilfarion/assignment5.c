@@ -40,7 +40,7 @@ int LDR = 0;
 int LDL = 0;
 
 int obstacleDetect = 0;
-int obstacleAvoidInControl = 0;
+int obstacleAvoidInControl = 0;//If obstacle sensor detect thing, change it to 1. changeDirection function will perform a scripted route.
 
 // Determine which direction the vehicle is turning
 int forward = 0;
@@ -349,7 +349,7 @@ fflush(stdout);
 pthread_create(&linethread_id, NULL, lineThread, NULL);
 pthread_create(&wheelthread_id, NULL, wheelThread, NULL);
 pthread_create(&directionthread_id, NULL, changeDirection, NULL);
-//pthread_create(&obstaclethread_id, NULL, obstacleThread, NULL);
+pthread_create(&obstaclethread_id, NULL, obstacleThread, NULL);
 
 // Runs the program for 5 minutes before shutting down
 time_t seconds = time(NULL);
