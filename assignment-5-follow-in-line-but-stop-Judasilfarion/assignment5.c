@@ -10,7 +10,10 @@ assignment5.c * * Description: Assignment 5 code for IR obstacle sensor and line
 #include <softPwm.h>
 
 // GPIO pin for the line sensor
-#define LINE 25
+#define LINEM 25
+#define LINER 24
+#define LINEL 7
+#define OBSTACLE 23
 
 // GPIO pins for turning on the motors, probably don't need to touch these
 #define TRIG1 0
@@ -32,54 +35,329 @@ assignment5.c * * Description: Assignment 5 code for IR obstacle sensor and line
 int exitbool = 0;
 
 // If this is 1, then the car detects the line. If this is 0, then the car does not detect the line
-int lineDetect = 0;
+int LDM = 0;
+int LDR = 0;
+int LDL = 0;
+
+int obstacleDetect = 0;
+int obstacleAvoidInControl = 0;//If obstacle sensor detect thing, change it to 1. changeDirection function will perform a scripted route.
+
+// Determine which direction the vehicle is turning
+int reverse = 0;
+int forward = 0;
+int right = 0;
+int left = 0;
 
 // The target pwm of the motors
 int pwm;
 
-// The current pwm of the motors
-int vpwm = 0;
+// Current pwm of motors L and R
+int vpwmL = 0;
+int vpwmR = 0;
 
-// This thread runs a while loop that continually reads input from the line sensor in order to determine whether or not sensors detect a line.
-// It currently assumes that the car only has a single line sensor - The sensor attached directly to the front of the car. Support for the other line sensors will be implemented later.
+// This thread runs a while loop that continually reads input from the line sensors in order to determine whether or not sensors detect a line.
 void *lineThread(void *vargp) {
 	while (exitbool == 0) {
-		lineDetect = digitalRead(LINE); // Read the input from the line sensor
-		if (lineDetect == 1) {
-			pwm = 50; // pwm = 50 sets the target pwm of the motors to half speed. 100 is currently way too fast for testing purposes.
+
+		// Read input from line sensors
+		if (digitalRead(LINEM) == 1) {
+			LDM = 1;
 		}
-		else pwm = 0;
+		else LDM = 0;
+
+		if (digitalRead(LINER) == 1) {
+			LDR = 1;
+		}
+		else LDR = 0;
+
+		if (digitalRead(LINEL) == 1) {
+			LDL = 1;
+		}
+		else LDL = 0;
+
+	}
+	return NULL;
+}
+
+// This thread determines the direction of the wheels based on what the sensors have input
+void *changeDirection(void *vargp) {
+	while (exitbool == 0) {
+
+		if(obstacleAvoidInControl == 1){//If obstacle in front, take over control and perform a scripted route 
+
+			pwm = 0;
+			delay(100);
+			pwm = 40;
+			left = 0;
+			right = 0;
+			forward = 0;
+			reverse = 1;
+			delay(200);
+			reverse = 0;
+
+			delay(100);
+			vpwmL = 0;
+			vpwmR = 0;
+			pwm = 40;
+			left = 0;
+			right = 1;
+			forward = 0;
+			delay(300); //set to turn right
+
+			pwm = 0;
+			delay(100);
+			pwm = 40;
+			left = 0;
+			right = 0;
+			forward = 1;
+			delay(1350); //set to  foward //Change it if the time is too long
+
+			pwm = 0;
+			delay(100);
+			pwm = 40;
+			forward = 0;
+			left = 1;
+			right = 0;
+			delay(800);
+
+			pwm = 0;
+			delay(100);
+			pwm = 40;
+			vpwmL = 0;
+			vpwmR = 0;
+			left = 0;
+			right = 0;
+			forward = 1;
+
+			obstacleAvoidInControl = 0; //car back to normal
+			pinMode(LINEL, OUTPUT);
+
+		}
+
+		// If the middle sensor detects the line in front of the car, then all wheels turn
+		else if (LDM == 1 && LDR == 0 && LDL == 0) {
+			pwm = 40; // This sets the power output to the motors at 40%, because 100% power makes them spin too fast
+			left = 0;
+			right = 0;
+			forward = 1;
+		}
+
+		// If the sensors detect that the line is to the right of the car, then it turns right
+		else if (LDM == 0 && LDR == 1 && LDL == 0) {
+			forward = 0;
+			left = 0;
+			while (LDM == 0) {
+				pwm = 40;
+				right = 1;
+				printf("Right\n");
+				if (LDM == 1) {
+					pinMode(LINEL, INPUT);
+					break;
+				}
+			}
+		}
+
+		// If the sensors detect that the line is to the left of the car, then it turns left
+		else if (LDM == 0 && LDR == 0 && LDL == 1) {
+			forward = 0;
+			right = 0;
+			while (LDM == 0) {
+				pwm = 40;
+				left = 1;
+				if (LDM == 1)
+					break;
+			}
+		}
+
+		// Keep the vehicle moving forward intermitently in an attempt to detect the lines to the side
+		else if (LDM == 0 && LDR == 0 && LDL == 0) {
+			left = 0;
+			right = 0;
+			forward = 0;
+
+			printf("Checking for line\n");
+			fflush(stdout);
+			time_t now;
+			now = time(NULL);
+			while (time(NULL) < now + 2) {
+				pwm = 40;
+				forward = 1;
+				if (obstacleAvoidInControl == 1) {
+					break;
+				}
+				else if (LDR == 1) {
+					pwm = 0;
+					vpwmR = 0;
+					right = 1;
+					break;
+				}
+				else if (LDL == 1) {
+					pwm = 0;
+					vpwmL = 0;
+					left = 1;
+					break;
+				}
+			}
+
+			if (LDR == 0 && LDL == 0) {
+				printf("Stopping vehicle\n");
+				fflush(stdout);
+				pwm = 0;
+				delay(1000);
+			}
+		}
+	}
+}
+
+void *obstacleThread(void *vargp) {
+	while (exitbool == 0) {
+		obstacleDetect = digitalRead(OBSTACLE); // Read the input from the line sensor
+		if (obstacleDetect == 0) {
+			obstacleAvoidInControl = 1;
+		}
+
 	}
 	return NULL;
 }
 
 // This thread runs the while loop that modifies the pwm of the motors so that they can start and stop.
 void *wheelThread(void *vargp) {
+	// Determine whether or not the car is transitioning from left/right turning
+	// Used to reset vpwm when transitioning to a different state so that the motors spin up properly
+	// Do you know how long it took to figure out this ridiculous workaround was necessary?
+	// HUH?!
+	// DO YA?!
+	// PUNK!!!
+	int rightRecover = 0;
+	int leftRecover = 0;
+
 	while (exitbool == 0) {
-		if (vpwm < pwm) {
-			// If current pwm is less than target pwm, run a loop that sets power output to all motors to max (max is currently defined by pwm = 50 in the lineThread), which sets motor speed to max.
-			for (vpwm; vpwm < pwm; vpwm++) {
-				softPwmWrite (FORWARD1, vpwm);
-				softPwmWrite (FORWARD2, vpwm);
-				softPwmWrite (FORWARD3, vpwm);
-				softPwmWrite (FORWARD4, vpwm);
+
+		// Go forward
+		if (pwm > 0 && forward == 1) {
+			// If current pwm is less than target pwm, run a loop that sets power output to motors to max (max is currently defined by pwm = 50 in the lineThread), which sets motor speed to max.
+			softPwmWrite (REVERSE2, 0);
+			softPwmWrite (REVERSE3, 0);
+			softPwmWrite (REVERSE1, 0);
+			softPwmWrite (REVERSE4, 0);
+
+			if (rightRecover == 1) {
+				vpwmR = 0;
+				rightRecover = 0;
+			}
+
+			if (leftRecover == 1) {
+				vpwmL = 0;
+				leftRecover = 0;
+			}
+
+			for (vpwmL; vpwmL < pwm; vpwmL++) {
+				softPwmWrite (FORWARD2, vpwmL);
+				softPwmWrite (FORWARD3, vpwmL);
+			}
+			for (vpwmR; vpwmR < pwm; vpwmR++) {
+				softPwmWrite (FORWARD1, vpwmR);
+				softPwmWrite (FORWARD4, vpwmR);
 			}
 		}
-		if (vpwm > pwm) {
+
+		else if (pwm > 0 && reverse == 1) {
+			softPwmWrite (FORWARD1, 0);
+			softPwmWrite (FORWARD2, 0);
+			softPwmWrite (FORWARD3, 0);
+			softPwmWrite (FORWARD4, 0);
+
+			vpwmL = 0;
+			vpwmR = 0;
+
+			for (vpwmL; vpwmL < pwm; vpwmL++) {
+				softPwmWrite (REVERSE2, vpwmL);
+				softPwmWrite (REVERSE3, vpwmL);
+			}
+
+			for (vpwmR; vpwmR < pwm; vpwmR++) {
+				softPwmWrite (REVERSE1, vpwmR);
+				softPwmWrite (REVERSE4, vpwmR);
+			}
+		}
+
+		// Turn Right
+		else if (pwm > 0 && right == 1) {
+			softPwmWrite (REVERSE2, 0);
+			softPwmWrite (REVERSE3, 0);
+			softPwmWrite (FORWARD1, 0);
+			softPwmWrite (FORWARD4, 0);
+
+			if (leftRecover == 1) {
+				vpwmL = 0;
+				vpwmR = 0;
+				leftRecover = 0;
+			}
+
+			// Forward left wheels
+			for (vpwmL; vpwmL < pwm; vpwmL++) {
+				softPwmWrite (FORWARD2, vpwmL);
+				softPwmWrite (FORWARD3, vpwmL);
+			}
+			// Reverse right wheels
+			for (vpwmR; vpwmR < pwm; vpwmR++) {
+				softPwmWrite (REVERSE1, vpwmR);
+				softPwmWrite (REVERSE4, vpwmR);
+			}
+			rightRecover = 1;
+		}
+
+		// Turn Left
+		else if (pwm > 0 && left == 1) {
+			softPwmWrite (FORWARD2, 0);
+			softPwmWrite (FORWARD3, 0);
+			softPwmWrite (REVERSE1, 0);
+			softPwmWrite (REVERSE4, 0);
+
+			if (rightRecover == 1) {
+				vpwmL = 0;
+				vpwmR = 0;
+				rightRecover = 0;
+			}
+
+			// Reverse left wheels
+			for (vpwmL; vpwmL < pwm; vpwmL++) {
+				softPwmWrite (REVERSE2, vpwmL);
+				softPwmWrite (REVERSE3, vpwmL);
+			}
+			// Forward right wheels
+			for (vpwmR; vpwmR < pwm; vpwmR++) {
+				softPwmWrite (FORWARD1, vpwmR);
+				softPwmWrite (FORWARD4, vpwmR);
+			}
+			leftRecover = 1;
+		}
+
+		// Stop
+		else if (pwm == 0) {
 			// If current pwm is greater than target pwm, run a loop that sets power output to all motors to 0, which stops all wheels.
-			for (vpwm; vpwm > pwm; vpwm--) {
-				softPwmWrite (FORWARD1, vpwm);
-				softPwmWrite (FORWARD2, vpwm);
-				softPwmWrite (FORWARD3, vpwm);
-				softPwmWrite (FORWARD4, vpwm);
+			for (vpwmL; vpwmL > pwm; vpwmL--) {
+				softPwmWrite (FORWARD2, vpwmL);
+				softPwmWrite (FORWARD3, vpwmL);
+				softPwmWrite (REVERSE2, vpwmL);
+				softPwmWrite (REVERSE3, vpwmL);
+			}
+			for (vpwmR; vpwmR > pwm; vpwmR--) {
+				softPwmWrite (FORWARD1, vpwmR);
+				softPwmWrite (FORWARD4, vpwmR);
+				softPwmWrite (REVERSE1, vpwmR);
+				softPwmWrite (REVERSE4, vpwmR);
 			}
 		}
+
 	}
 	return NULL;
 }
 
 // Main function
 int main (void) {
+
+delay (1000);
 
 // Setup wiringpi
 if (wiringPiSetup () == -1){
@@ -111,20 +389,27 @@ softPwmCreate (REVERSE2, 0, 100);
 softPwmCreate (REVERSE3, 0, 100);
 softPwmCreate (REVERSE4, 0, 100);
 
-// Create threads for line sensor and motors
-pthread_t linethread_id, wheelthread_id;
-pinMode (LINE, INPUT);
+// Create threads for line sensors, obstacle sensors and motors
+pthread_t linethread_id, wheelthread_id, directionthread_id, obstaclethread_id;
+pinMode (LINEM, INPUT);
+pinMode (LINER, INPUT);
+pinMode (LINEL, INPUT);
+pinMode (OBSTACLE, INPUT);
 
 printf("Creating threads for sensors \n");
 fflush(stdout);
 
 pthread_create(&linethread_id, NULL, lineThread, NULL);
 pthread_create(&wheelthread_id, NULL, wheelThread, NULL);
+pthread_create(&directionthread_id, NULL, changeDirection, NULL);
+pthread_create(&obstaclethread_id, NULL, obstacleThread, NULL);
 
 // Runs the program for 5 minutes before shutting down
 time_t seconds = time(NULL);
 while (time(NULL) < seconds + 300) {
-	printf("Line Sensor: %d\n", lineDetect);
+	printf("Line Sensor M: %d\n", LDM);
+	printf("Line Sensor R: %d\n", LDR);
+	printf("Line Sensor L: %d\n", LDL);
 	fflush(stdout);
 	printf("PWM: %d\n", pwm);
 	fflush(stdout);
