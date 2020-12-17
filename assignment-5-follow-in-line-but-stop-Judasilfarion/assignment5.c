@@ -43,6 +43,7 @@ int obstacleDetect = 0;
 int obstacleAvoidInControl = 0;//If obstacle sensor detect thing, change it to 1. changeDirection function will perform a scripted route.
 
 // Determine which direction the vehicle is turning
+int reverse = 0;
 int forward = 0;
 int right = 0;
 int left = 0;
@@ -84,25 +85,52 @@ void *changeDirection(void *vargp) {
 
 		if(obstacleAvoidInControl == 1){//If obstacle in front, take over control and perform a scripted route 
 
+			pwm = 0;
+			delay(100);
+			pwm = 40;
+			left = 0;
+			right = 0;
+			forward = 0;
+			reverse = 1;
+			delay(200);
+			reverse = 0;
+
+			delay(100);
+			vpwmL = 0;
+			vpwmR = 0;
 			pwm = 40;
 			left = 0;
 			right = 1;
 			forward = 0;
-			delay(2000); //set to turn right for 2 sec
+			delay(300); //set to turn right
+
+			pwm = 0;
+			delay(100);
+			pwm = 40;
 			left = 0;
 			right = 0;
 			forward = 1;
-			delay(2000); //set to  foward for 2 sec //Change it if the time is too long
+			delay(1350); //set to  foward //Change it if the time is too long
+
+			pwm = 0;
+			delay(100);
+			pwm = 40;
+			forward = 0;
 			left = 1;
 			right = 0;
-			forward = 0;
-			delay(2000);
+			delay(800);
+
+			pwm = 0;
+			delay(100);
+			pwm = 40;
+			vpwmL = 0;
+			vpwmR = 0;
 			left = 0;
 			right = 0;
 			forward = 1;
-			delay(2000);
 
 			obstacleAvoidInControl = 0; //car back to normal
+			pinMode(LINEL, OUTPUT);
 
 		}
 
@@ -121,8 +149,11 @@ void *changeDirection(void *vargp) {
 			while (LDM == 0) {
 				pwm = 40;
 				right = 1;
-				if (LDM == 1)
+				printf("Right\n");
+				if (LDM == 1) {
+					pinMode(LINEL, INPUT);
 					break;
+				}
 			}
 		}
 
@@ -151,7 +182,10 @@ void *changeDirection(void *vargp) {
 			while (time(NULL) < now + 2) {
 				pwm = 40;
 				forward = 1;
-				if (LDR == 1) {
+				if (obstacleAvoidInControl == 1) {
+					break;
+				}
+				else if (LDR == 1) {
 					pwm = 0;
 					vpwmR = 0;
 					right = 1;
@@ -178,9 +212,8 @@ void *changeDirection(void *vargp) {
 void *obstacleThread(void *vargp) {
 	while (exitbool == 0) {
 		obstacleDetect = digitalRead(OBSTACLE); // Read the input from the line sensor
-		if (obstacleDetect == 1) {
+		if (obstacleDetect == 0) {
 			obstacleAvoidInControl = 1;
-		
 		}
 
 	}
@@ -225,6 +258,26 @@ void *wheelThread(void *vargp) {
 			for (vpwmR; vpwmR < pwm; vpwmR++) {
 				softPwmWrite (FORWARD1, vpwmR);
 				softPwmWrite (FORWARD4, vpwmR);
+			}
+		}
+
+		else if (pwm > 0 && reverse == 1) {
+			softPwmWrite (FORWARD1, 0);
+			softPwmWrite (FORWARD2, 0);
+			softPwmWrite (FORWARD3, 0);
+			softPwmWrite (FORWARD4, 0);
+
+			vpwmL = 0;
+			vpwmR = 0;
+
+			for (vpwmL; vpwmL < pwm; vpwmL++) {
+				softPwmWrite (REVERSE2, vpwmL);
+				softPwmWrite (REVERSE3, vpwmL);
+			}
+
+			for (vpwmR; vpwmR < pwm; vpwmR++) {
+				softPwmWrite (REVERSE1, vpwmR);
+				softPwmWrite (REVERSE4, vpwmR);
 			}
 		}
 
@@ -304,7 +357,7 @@ void *wheelThread(void *vargp) {
 // Main function
 int main (void) {
 
-delay (10000);
+delay (1000);
 
 // Setup wiringpi
 if (wiringPiSetup () == -1){
