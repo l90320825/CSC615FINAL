@@ -1,8 +1,8 @@
-lineRobot: lineRobot.c motorShield.c
-	gcc lineRobot.c motorShield.c -Wall -o lineRobot -lwiringPi -lpthread
-
-run:
+	all:
+	gcc lineRobot.c -lwiringPi -lpthread -o lineRobot
+	
+	run:
 	sudo ./lineRobot
-
-clean:
+	
+	clean:
 	rm lineRobot
